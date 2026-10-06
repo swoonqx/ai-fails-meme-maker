@@ -101,6 +101,75 @@ input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
 .toggle-group button.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .file-input{display:none}
 
+/* Pickr/Monolith-style color picker: consistent desktop/mobile UI */
+body.color-picker-open { overflow: hidden; }
+.color-picker-backdrop {
+  position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(15,18,20,.32); backdrop-filter: blur(2px);
+}
+.color-picker-backdrop[hidden] { display: none !important; }
+.color-picker-sheet {
+  width: min(324px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto;
+  background: #fff; border: 1px solid rgba(0,0,0,.09); border-radius: 4px; padding: 18px;
+  box-shadow: 0 14px 38px rgba(0,0,0,.22); touch-action: manipulation;
+}
+.color-picker-preview {
+  height: 24px; border-radius: 3px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,.08);
+  background: #323232;
+}
+.color-sv-wrap { position: relative; width: 100%; aspect-ratio: 1.36 / 1; margin-bottom: 14px; touch-action: none; }
+#colorSV { width: 100%; height: 100%; display: block; border-radius: 4px; cursor: crosshair; touch-action: none; }
+.color-picker-knob {
+  position: absolute; width: 22px; height: 22px; border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.65), 0 1px 3px rgba(0,0,0,.35);
+  transform: translate(-50%,-50%); pointer-events: none;
+}
+.color-hue-wrap { position: relative; height: 14px; margin: 0 0 28px; touch-action: none; }
+#colorHue {
+  width: 100%; height: 14px; display: block; border-radius: 999px; cursor: pointer; touch-action: none;
+  background: linear-gradient(90deg,#f00 0%,#ff0 16.66%,#0f0 33.33%,#0ff 50%,#00f 66.66%,#f0f 83.33%,#f00 100%);
+}
+.color-hue-knob {
+  position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.48),0 1px 3px rgba(0,0,0,.28);
+  transform: translate(-50%,-50%); pointer-events: none; background: #f00;
+}
+.color-recent-wrap { margin: 0 0 14px; }
+.color-recent-label { font-size: 11px; color: #8a9199; margin-bottom: 7px; font-weight: 600; }
+.color-recent-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-recent-swatch {
+  width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,.08); cursor: pointer;
+}
+.color-recent-swatch:hover { border-color: #4b83e6; }
+.color-picker-controls { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; }
+.color-hex-wrap { display: flex; align-items: center; min-width: 0; }
+#colorHex {
+  width: 100%; min-width: 0; height: 41px; padding: 8px 10px; border: 0; border-radius: 2px;
+  background: #f0f1f2; color: #747980; font: 16px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  text-transform: uppercase;
+}
+#colorHex:focus { outline: 2px solid rgba(37,99,235,.22); background: #f7f8f9; }
+.color-apply-btn {
+  height: 41px; padding: 0 12px !important; border-radius: 2px !important; border: 0 !important;
+  background: #4b83e6 !important; color: #fff !important; font-size: 14px !important; font-weight: 700 !important;
+}
+.color-eyedropper-btn {
+  width: 100%; min-height: 42px; margin-top: 10px; border-radius: 8px !important;
+  border: 1px solid #a9c7ff !important; background: #eef4ff !important; color: #1670df !important;
+  display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px !important;
+}
+.color-eyedropper-btn[hidden] { display: none !important; }
+.color-picker-sr {
+  position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important;
+  overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important;
+}
+input[type=color] { touch-action: manipulation; }
+@media (max-width: 600px) {
+  .color-picker-backdrop { align-items: center; padding: 10px; }
+  .color-picker-sheet { width: min(344px, calc(100vw - 20px)); padding: 16px; }
+  input[type=color] { width: 48px; height: 40px; }
+}
 @media(max-width:860px){
   :root{--topbar:94px}
   html,body{overflow:hidden}
@@ -209,6 +278,33 @@ input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
   </aside>
 </main>
 
+<div class="color-picker-backdrop" id="colorPickerBackdrop" hidden>
+  <section class="color-picker-sheet" id="colorPickerSheet" role="dialog" aria-modal="true" aria-label="색상 선택" data-i18n-aria="colorPickerTitle">
+    <div class="color-picker-preview" id="colorPickerPreview" aria-hidden="true"></div>
+    <div class="color-sv-wrap" id="colorSVWrap">
+      <canvas id="colorSV" width="576" height="424" aria-label="채도와 밝기" data-i18n-aria="colorSVAria"></canvas>
+      <span class="color-picker-knob" id="colorSVKnob" aria-hidden="true"></span>
+    </div>
+    <div class="color-hue-wrap" id="colorHueWrap">
+      <div id="colorHue" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0" aria-label="색상" data-i18n-aria="colorHueAria"></div>
+      <span class="color-hue-knob" id="colorHueKnob" aria-hidden="true"></span>
+    </div>
+    <div class="color-recent-wrap" id="colorRecentWrap" hidden>
+      <div class="color-recent-label" id="colorRecentLabel" data-i18n="colorRecentLabel">최근 사용한 색상</div>
+      <div class="color-recent-row" id="colorRecentRow"></div>
+    </div>
+    <div class="color-picker-controls">
+      <div class="color-hex-wrap">
+        <input type="text" id="colorHex" inputmode="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="HEX 색상" data-i18n-aria="colorHexAria" value="#323232">
+      </div>
+      <button type="button" class="color-apply-btn" id="colorApply" data-i18n="colorApply">적용</button>
+    </div>
+    <button type="button" class="color-eyedropper-btn" id="colorEyedropper" hidden>
+      <span aria-hidden="true">⌕</span><span id="colorEyedropperLabel" data-i18n="colorEyedropper">스포이드</span>
+    </button>
+    <span class="color-picker-sr" id="colorPickerHelp" data-i18n="colorHelp">색상 영역을 움직여 색을 선택하고 적용 버튼을 누르세요.</span>
+  </section>
+</div>
 <script>
 (() => {
 'use strict';
@@ -225,7 +321,8 @@ const I18N = {
     labelPos:'라벨 위치', posTop:'위', posInside:'안쪽', deleteBox:'선택 박스 삭제',
     detections:'인식 박스', noLabel:'라벨 없음', selectBtn:'선택', deleteBtn:'삭제',
     emptyCards:'사진을 올린 뒤 "박스 추가"로 대상을 감싸 보세요.',
-    errLoad:'이미지를 불러오지 못했습니다. 다른 이미지 파일을 선택해 주세요.', errNotImage:'이미지 파일만 사용할 수 있어요.', errSave:'이미지를 저장하지 못했습니다.'
+    errLoad:'이미지를 불러오지 못했습니다. 다른 이미지 파일을 선택해 주세요.', errNotImage:'이미지 파일만 사용할 수 있어요.', errSave:'이미지를 저장하지 못했습니다.',
+    colorPickerTitle:'색상 선택', colorApply:'적용', colorEyedropper:'스포이드', colorSVAria:'채도와 밝기', colorHueAria:'색상', colorHexAria:'HEX 색상', colorRecentLabel:'최근 사용한 색상', colorHelp:'색상 영역을 움직여 색을 선택하고 적용 버튼을 누르세요.'
   },
   en: {
     title:'AI FAIL Maker', brandSuffix:'Maker', creator:'By', langLabel:'Language', save:'Save image',
@@ -237,7 +334,8 @@ const I18N = {
     labelPos:'Label position', posTop:'Above', posInside:'Inside', deleteBox:'Delete box',
     detections:'Detections', noLabel:'No label', selectBtn:'Select', deleteBtn:'Delete',
     emptyCards:'Add a photo, then use "Add box" to wrap your subject.',
-    errLoad:'Could not load the image. Please choose another file.', errNotImage:'Only image files are supported.', errSave:'Could not save the image.'
+    errLoad:'Could not load the image. Please choose another file.', errNotImage:'Only image files are supported.', errSave:'Could not save the image.',
+    colorPickerTitle:'Choose Color', colorApply:'Apply', colorEyedropper:'Eyedropper', colorSVAria:'Saturation and brightness', colorHueAria:'Hue', colorHexAria:'HEX color', colorRecentLabel:'Recent Colors', colorHelp:'Move in the color area to pick a color, then press Apply.'
   },
   ja: {
     title:'AI FAIL メーカー', brandSuffix:'メーカー', creator:'制作:', langLabel:'言語選択', save:'画像を保存',
@@ -249,7 +347,8 @@ const I18N = {
     labelPos:'ラベル位置', posTop:'上', posInside:'内側', deleteBox:'ボックスを削除',
     detections:'検出ボックス', noLabel:'ラベルなし', selectBtn:'選択', deleteBtn:'削除',
     emptyCards:'写真を追加して「ボックス追加」で対象を囲んでみましょう。',
-    errLoad:'画像を読み込めませんでした。別のファイルを選んでください。', errNotImage:'画像ファイルのみ使用できます。', errSave:'画像を保存できませんでした。'
+    errLoad:'画像を読み込めませんでした。別のファイルを選んでください。', errNotImage:'画像ファイルのみ使用できます。', errSave:'画像を保存できませんでした。',
+    colorPickerTitle:'色を選択', colorApply:'適用', colorEyedropper:'スポイト', colorSVAria:'彩度と明るさ', colorHueAria:'色相', colorHexAria:'HEXカラー', colorRecentLabel:'最近使った色', colorHelp:'色の領域を動かして色を選び、適用を押してください。'
   },
   zh: {
     title:'AI FAIL 制作器', brandSuffix:'制作器', creator:'制作:', langLabel:'选择语言', save:'保存图片',
@@ -261,7 +360,8 @@ const I18N = {
     labelPos:'标签位置', posTop:'上方', posInside:'内部', deleteBox:'删除所选方框',
     detections:'识别方框', noLabel:'无标签', selectBtn:'选择', deleteBtn:'删除',
     emptyCards:'添加图片后，点击“添加方框”框住目标。',
-    errLoad:'无法加载图片，请选择其他文件。', errNotImage:'仅支持图片文件。', errSave:'无法保存图片。'
+    errLoad:'无法加载图片，请选择其他文件。', errNotImage:'仅支持图片文件。', errSave:'无法保存图片。',
+    colorPickerTitle:'选择颜色', colorApply:'应用', colorEyedropper:'吸管', colorSVAria:'饱和度和亮度', colorHueAria:'色相', colorHexAria:'HEX 颜色', colorRecentLabel:'最近使用的颜色', colorHelp:'在颜色区域移动选择颜色，然后点击应用。'
   }
 };
 const LANG_KEY = 'aiFailMaker.lang';
@@ -291,6 +391,7 @@ function setLang(next) {
 
 /* ---------- elements & state ---------- */
 const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
 const fileInput = $('fileInput'), pickBtn = $('pickBtn'), downloadBtn = $('downloadBtn'), stage = $('stage');
 const selectMode = $('selectMode'), drawMode = $('drawMode'), cards = $('cards');
@@ -615,6 +716,7 @@ downloadBtn.addEventListener('click', () => {
 
 /* ---------- keyboard ---------- */
 window.addEventListener('keydown', e => {
+  if (document.body.classList.contains('color-picker-open')) return;
   const tag = document.activeElement && document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   if (e.key === 'Escape') {
@@ -629,6 +731,214 @@ window.addEventListener('keydown', e => {
   const move = { ArrowLeft:[-step, 0], ArrowRight:[step, 0], ArrowUp:[0, -step], ArrowDown:[0, step] }[e.key];
   if (move) { e.preventDefault(); boxes[selected].x += move[0]; boxes[selected].y += move[1]; render(); }
 });
+
+/* ---------- color picker (shared look with sw-polaroid) ---------- */
+  const COLOR_INPUT_IDS = ['colorInput'];
+  const colorUI = {
+    backdrop: $('colorPickerBackdrop'), sheet: $('colorPickerSheet'),
+    sv: $('colorSV'), svWrap: $('colorSVWrap'), svKnob: $('colorSVKnob'),
+    hue: $('colorHue'), hueWrap: $('colorHueWrap'), hueKnob: $('colorHueKnob'),
+    preview: $('colorPickerPreview'), hex: $('colorHex'), apply: $('colorApply'),
+    eyedropper: $('colorEyedropper'), eyedropperLabel: $('colorEyedropperLabel'),
+    recentWrap: $('colorRecentWrap'), recentLabel: $('colorRecentLabel'), recentRow: $('colorRecentRow')
+  };
+  let activeColorInput = null;
+  let colorOriginal = '#000000';
+  let colorHSV = { h: 0, s: 0, v: 0.2 };
+
+  // ---- recently used colors (persisted so they're available next time the picker opens) ----
+  const RECENT_COLORS_KEY = 'aiFailMakerRecentColors';
+  const RECENT_COLORS_MAX = 12;
+  let recentColors = [];
+  function loadRecentColors() {
+    try {
+      const raw = localStorage.getItem(RECENT_COLORS_KEY);
+      if (raw) recentColors = JSON.parse(raw).filter((h) => hexToRgb(h));
+    } catch (_) {}
+  }
+  function saveRecentColors() {
+    try { localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recentColors)); } catch (_) {}
+  }
+  function addRecentColor(hex) {
+    hex = hex.toLowerCase();
+    recentColors = [hex, ...recentColors.filter((c) => c !== hex)].slice(0, RECENT_COLORS_MAX);
+    saveRecentColors();
+    buildRecentColorRow();
+  }
+  function buildRecentColorRow() {
+    const wrap = colorUI.recentWrap, row = colorUI.recentRow;
+    if (!recentColors.length) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    row.innerHTML = '';
+    recentColors.forEach((hex) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'color-recent-swatch';
+      b.style.background = hex;
+      b.title = hex;
+      b.addEventListener('click', () => {
+        const rgb = hexToRgb(hex);
+        if (!rgb) return;
+        colorHSV = rgbToHsv(rgb.r, rgb.g, rgb.b);
+        refreshColorPicker(true);
+      });
+      row.appendChild(b);
+    });
+  }
+  let svDragging = false;
+  let hueDragging = false;
+
+  function hexToRgb(hex) {
+    const clean = String(hex).replace('#', '').trim();
+    const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+    const n = parseInt(full, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map((n) => Math.round(clamp(n, 0, 255)).toString(16).padStart(2, '0')).join('');
+  }
+  function rgbToHsv(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let h = 0;
+    if (d) {
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60; if (h < 0) h += 360;
+    }
+    return { h, s: max === 0 ? 0 : d / max, v: max };
+  }
+  function hsvToRgb(h, s, v) {
+    h = ((h % 360) + 360) % 360;
+    const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) [r,g,b] = [c,x,0];
+    else if (h < 120) [r,g,b] = [x,c,0];
+    else if (h < 180) [r,g,b] = [0,c,x];
+    else if (h < 240) [r,g,b] = [0,x,c];
+    else if (h < 300) [r,g,b] = [x,0,c];
+    else [r,g,b] = [c,0,x];
+    return { r:(r+m)*255, g:(g+m)*255, b:(b+m)*255 };
+  }
+  function hsvToHex(h, s, v) {
+    const c = hsvToRgb(h, s, v);
+    return rgbToHex(c.r, c.g, c.b);
+  }
+  function drawSV() {
+    const c = colorUI.sv, g = c.getContext('2d');
+    const pure = hsvToHex(colorHSV.h, 1, 1);
+    g.clearRect(0, 0, c.width, c.height);
+    g.fillStyle = pure; g.fillRect(0, 0, c.width, c.height);
+    const white = g.createLinearGradient(0, 0, c.width, 0);
+    white.addColorStop(0, '#fff'); white.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = white; g.fillRect(0, 0, c.width, c.height);
+    const black = g.createLinearGradient(0, 0, 0, c.height);
+    black.addColorStop(0, 'rgba(0,0,0,0)'); black.addColorStop(1, '#000');
+    g.fillStyle = black; g.fillRect(0, 0, c.width, c.height);
+  }
+  function pushColorToInput(hex) {
+    if (!activeColorInput) return;
+    activeColorInput.value = hex;
+    activeColorInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function refreshColorPicker(push = true) {
+    const hex = hsvToHex(colorHSV.h, colorHSV.s, colorHSV.v);
+    colorUI.preview.style.background = hex;
+    colorUI.hex.value = hex.toUpperCase();
+    drawSV();
+    colorUI.svKnob.style.left = (colorHSV.s * 100) + '%';
+    colorUI.svKnob.style.top = ((1 - colorHSV.v) * 100) + '%';
+    colorUI.hueKnob.style.left = (colorHSV.h / 360 * 100) + '%';
+    colorUI.hueKnob.style.background = hsvToHex(colorHSV.h, 1, 1);
+    colorUI.hue.setAttribute('aria-valuenow', String(Math.round(colorHSV.h)));
+    if (push) pushColorToInput(hex);
+  }
+  function openColorPicker(input) {
+    if (!input || input.disabled || input.style.display === 'none') return;
+    activeColorInput = input;
+    colorOriginal = input.value || '#000000';
+    const rgb = hexToRgb(colorOriginal) || { r:0, g:0, b:0 };
+    colorHSV = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    colorUI.backdrop.hidden = false;
+    document.body.classList.add('color-picker-open');
+    buildRecentColorRow();
+    refreshColorPicker(false);
+    requestAnimationFrame(() => colorUI.hex.focus({ preventScroll:true }));
+  }
+  function closeColorPicker(commit) {
+    if (!activeColorInput) return;
+    if (!commit) pushColorToInput(colorOriginal);
+    else addRecentColor(hsvToHex(colorHSV.h, colorHSV.s, colorHSV.v));
+    colorUI.backdrop.hidden = true;
+    document.body.classList.remove('color-picker-open');
+    const returnTo = activeColorInput;
+    activeColorInput = null;
+    returnTo.focus({ preventScroll:true });
+  }
+  function setSVFromPointer(e) {
+    const r = colorUI.sv.getBoundingClientRect();
+    colorHSV.s = clamp((e.clientX - r.left) / r.width, 0, 1);
+    colorHSV.v = 1 - clamp((e.clientY - r.top) / r.height, 0, 1);
+    refreshColorPicker(true);
+  }
+  function setHueFromPointer(e) {
+    const r = colorUI.hue.getBoundingClientRect();
+    colorHSV.h = clamp((e.clientX - r.left) / r.width, 0, 1) * 360;
+    if (colorHSV.h >= 360) colorHSV.h = 359.999;
+    refreshColorPicker(true);
+  }
+  colorUI.sv.addEventListener('pointerdown', (e) => {
+    svDragging = true; try { colorUI.sv.setPointerCapture(e.pointerId); } catch (_) {} setSVFromPointer(e);
+  });
+  colorUI.sv.addEventListener('pointermove', (e) => { if (svDragging) setSVFromPointer(e); });
+  colorUI.sv.addEventListener('pointerup', () => { svDragging = false; });
+  colorUI.sv.addEventListener('pointercancel', () => { svDragging = false; });
+  colorUI.hue.addEventListener('pointerdown', (e) => {
+    hueDragging = true; try { colorUI.hue.setPointerCapture(e.pointerId); } catch (_) {} setHueFromPointer(e);
+  });
+  colorUI.hue.addEventListener('pointermove', (e) => { if (hueDragging) setHueFromPointer(e); });
+  colorUI.hue.addEventListener('pointerup', () => { hueDragging = false; });
+  colorUI.hue.addEventListener('pointercancel', () => { hueDragging = false; });
+  colorUI.hue.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    colorHSV.h = (colorHSV.h + (e.key === 'ArrowRight' ? 2 : -2) + 360) % 360;
+    refreshColorPicker(true);
+  });
+  colorUI.hex.addEventListener('input', () => {
+    const rgb = hexToRgb(colorUI.hex.value);
+    if (!rgb) return;
+    colorHSV = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    refreshColorPicker(true);
+  });
+  colorUI.hex.addEventListener('blur', () => { refreshColorPicker(false); });
+  colorUI.hex.addEventListener('keydown', (e) => { if (e.key === 'Enter') closeColorPicker(true); });
+  colorUI.apply.addEventListener('click', () => closeColorPicker(true));
+  colorUI.backdrop.addEventListener('click', (e) => { if (e.target === colorUI.backdrop) closeColorPicker(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !colorUI.backdrop.hidden) { e.stopPropagation(); closeColorPicker(false); } });
+  if ('EyeDropper' in window) {
+    colorUI.eyedropper.hidden = false;
+    colorUI.eyedropper.addEventListener('click', async () => {
+      try {
+        const result = await new EyeDropper().open();
+        const rgb = hexToRgb(result.sRGBHex);
+        if (!rgb) return;
+        colorHSV = rgbToHsv(rgb.r, rgb.g, rgb.b);
+        refreshColorPicker(true);
+      } catch (_) {}
+    });
+  }
+  COLOR_INPUT_IDS.forEach((id) => {
+    const input = $(id);
+    if (!input) return;
+    input.setAttribute('aria-haspopup', 'dialog');
+    input.addEventListener('click', (e) => { e.preventDefault(); openColorPicker(input); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openColorPicker(input); }
+    });
+  });
 
 /* ---------- init ---------- */
 setMode('select');
