@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI FAIL 메이커</title>
+<meta name="description" content="이미지에 AI 인식 오류 스타일의 박스와 라벨을 추가해 밈을 만드는 AI FAIL 메이커입니다.">
+<meta name="theme-color" content="#0b0c0d">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --bg:#e9ebed; --stage:#d6dade; --panel:#f6f7f8; --card:#fff;
+  --ink:#15181b; --text2:#3b4148; --muted:#7a828a; --line:#dcdfe3;
+  --black:#0b0c0d; --accent:#14b8a6; --accent-strong:#0d9488;
+  --accent-soft:rgba(20,184,166,.12); --accent-ink:#05201d; --topbar:56px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo",system-ui,sans-serif;line-height:1.5;display:flex;flex-direction:column;min-height:100%}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.topbar{height:var(--topbar);flex:none;background:var(--black);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:20;border-bottom:1px solid #23272b}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0;overflow:hidden}
+.brand h1{margin:0;font-size:18px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand h1 i{font-style:normal;color:var(--accent)}
+.creator{font-size:11px;color:#8b939b;white-space:nowrap;flex:none}
+.creator a{color:#8b939b;text-decoration:none}
+.creator a:hover{color:#fff}
+.topbar-actions{display:flex;gap:10px;align-items:center;flex:none}
+.langtabs{display:flex;gap:2px;background:rgba(255,255,255,.06);border:1px solid #262b30;border-radius:9999px;padding:3px}
+.langtabs button{font-size:12px;font-weight:700;padding:6px 12px;border:0;border-radius:9999px;background:transparent;color:#9aa1a8}
+.langtabs button:hover:not(.active){color:#fff;background:transparent}
+.langtabs button.active{background:var(--accent);color:var(--accent-ink)}
+
+/* buttons */
+button,input{font:inherit}
+button{font-size:13px;font-weight:500;padding:8px 14px;border-radius:9999px;border:1px solid var(--line);background:#fff;color:var(--text2);cursor:pointer;transition:.12s}
+button:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14px;padding:8px 18px}
+.primary:hover:not(:disabled){background:#2dd4bf;border-color:#2dd4bf}
+.dark{background:var(--black);border-color:var(--black);color:#fff;font-weight:600}
+.dark:hover:not(:disabled){background:#23272b;border-color:#23272b;color:#fff}
+.danger{color:#b4372c}
+.danger:hover:not(:disabled){border-color:#b4372c;background:rgba(180,55,44,.08);color:#b4372c}
+.full{width:100%}
+
+/* layout */
+main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
+.stage{position:sticky;top:var(--topbar);height:calc(100vh - var(--topbar));background:radial-gradient(ellipse at 50% 40%,#e2e5e8 0%,var(--stage) 70%);padding:32px;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:box-shadow .12s}
+.stage.image-empty{cursor:pointer}
+.stage.drag-over{box-shadow:inset 0 0 0 3px var(--accent)}
+.canvas-wrap{position:relative;max-width:100%;max-height:100%;display:flex;align-items:center;justify-content:center}
+.empty-upload{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.empty-upload-inner{display:flex;flex-direction:column;align-items:center;gap:14px;color:#9ba3ab;font-weight:700;font-size:32px;line-height:1;text-align:center}
+.empty-upload-plus{font-size:68px;font-weight:300;line-height:.8}
+.empty-upload-sub{font-size:13px;font-weight:500;line-height:1.4}
+.stage:not(.image-empty) .empty-upload{display:none}
+canvas{display:block;max-width:100%;max-height:calc(100vh - var(--topbar) - 64px);width:auto;height:auto;background:transparent;touch-action:none;box-shadow:0 16px 40px rgba(0,0,0,.12)}
+.side{background:var(--panel);border-left:1px solid var(--line);height:calc(100vh - var(--topbar));position:sticky;top:var(--topbar);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+
+/* panels */
+.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.box h2{margin:0 0 12px;font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.row{display:flex;align-items:center;gap:10px}
+.row+.row{margin-top:12px}
+.row label,.row .row-label{font-size:13px;min-width:64px;color:var(--text2)}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.field input[type=text]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:13px}
+.field input[type=text]:focus{outline:2px solid var(--accent);border-color:transparent}
+input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+.val{font-size:12px;color:var(--muted);min-width:36px;text-align:right}
+.color-row{display:flex;align-items:center;gap:10px}
+.color-row input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.color-chip{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.12);flex:none}
+.mt{margin-top:12px}
+
+/* detection cards */
+.cards{display:flex;flex-direction:column;gap:10px}
+.cards-empty{font-size:12px;color:var(--muted);margin:0}
+.det-card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;cursor:pointer}
+.det-card.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.det-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.det-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;min-width:0}
+.det-title span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.det-num{font-size:11px;color:var(--muted)}
+.det-meta{font-size:11px;color:var(--muted);margin-top:6px}
+.det-actions{display:flex;gap:6px;margin-top:10px}
+.det-actions button{flex:1;padding:6px 10px;font-size:12px}
+
+/* toggles */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mode-grid button{border-radius:10px;font-weight:700}
+.mode-grid button.active{background:var(--black);border-color:var(--black);color:#fff}
+.toggle-group{display:flex;gap:4px;flex:1}
+.toggle-group button{flex:1;border-radius:8px;padding:7px 8px;font-size:12px;font-weight:600}
+.toggle-group button.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.file-input{display:none}
+
+@media(max-width:860px){
+  :root{--topbar:94px}
+  html,body{overflow:hidden}
+  .topbar{height:var(--topbar);padding:7px 12px 8px;align-items:stretch;flex-direction:column;gap:5px}
+  .brand{justify-content:space-between;align-items:center;gap:8px}
+  .brand h1{font-size:16px}
+  .creator{font-size:10px}
+  .topbar-actions{justify-content:space-between;gap:8px}
+  .langtabs{flex:1;min-width:0;justify-content:space-between;overflow:hidden}
+  .langtabs button{flex:1;min-width:0;padding:5px 7px;font-size:11px}
+  .primary{font-size:12px;padding:6px 12px;min-height:34px}
+  main{display:flex;flex-direction:column;height:calc(100dvh - var(--topbar));overflow:hidden}
+  .stage{order:1;position:relative;top:auto;width:100%;height:auto;flex:0 0 44%;min-height:190px;max-height:46vh;padding:10px 12px;border-bottom:1px solid #c9cdd1;box-shadow:0 8px 18px rgba(20,24,28,.08)}
+  .empty-upload-inner{font-size:24px}
+  .empty-upload-plus{font-size:52px}
+  canvas{max-height:100%;box-shadow:0 8px 24px rgba(0,0,0,.1)}
+  .side{order:2;position:relative;top:auto;width:100%;height:auto;flex:1;min-height:0;overflow-y:auto;border-left:0;padding:12px;gap:12px}
+  .box{border-radius:14px;padding:14px}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <h1>AI FAIL <i data-i18n="brandSuffix">메이커</i></h1>
+    <span class="creator"><span data-i18n="creator">제작:</span> <a href="https://x.com/swoonqx" target="_blank" rel="noopener noreferrer">𝕏 @swoonqx</a></span>
+  </div>
+  <div class="topbar-actions">
+    <div class="langtabs" id="langTabs" role="tablist" aria-label="언어 선택" data-i18n-aria="langLabel">
+      <button type="button" class="active" data-lang="ko" role="tab" aria-selected="true">KR</button>
+      <button type="button" data-lang="en" role="tab" aria-selected="false">EN</button>
+      <button type="button" data-lang="ja" role="tab" aria-selected="false">JP</button>
+      <button type="button" data-lang="zh" role="tab" aria-selected="false">CN</button>
+    </div>
+    <button id="downloadBtn" class="primary" disabled data-i18n="save">이미지 저장</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage image-empty" id="stage" role="button" tabindex="0" data-i18n-aria="addPhoto" aria-label="사진 추가">
+    <div class="canvas-wrap">
+      <canvas id="canvas" width="1000" height="1000" aria-label="AI FAIL 밈 미리보기" data-i18n-aria="canvasLabel"></canvas>
+      <div class="empty-upload" aria-hidden="true">
+        <div class="empty-upload-inner">
+          <span class="empty-upload-plus">＋</span>
+          <span data-i18n="addPhoto">사진 추가</span>
+          <span class="empty-upload-sub" data-i18n="dropHint">클릭 · 드래그 · 붙여넣기(Ctrl+V)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="box">
+      <h2 data-i18n="aspectTitle">이미지 비율</h2>
+      <div class="toggle-group" id="aspectGroup">
+        <button type="button" class="active" data-aspect="native" data-i18n="aspectNative">기본</button>
+        <button type="button" data-aspect="1:1">1:1</button>
+        <button type="button" data-aspect="3:4">3:4</button>
+        <button type="button" data-aspect="4:3">4:3</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2 data-i18n="imageTitle">이미지</h2>
+      <input class="file-input" type="file" id="fileInput" accept="image/*">
+      <button type="button" class="dark full" id="pickBtn" data-i18n="pickPhoto">사진 선택</button>
+      <div class="row mt"><label for="zoom" data-i18n="zoom">확대</label><input type="range" id="zoom" min="1" max="4" step="0.01" value="1" disabled></div>
+      <button type="button" id="resetPosBtn" class="mt" disabled data-i18n="resetPos">위치 초기화</button>
+    </div>
+
+    <div class="box">
+      <h2 data-i18n="boxTools">박스 작업</h2>
+      <div class="mode-grid">
+        <button type="button" id="selectMode" class="active" data-i18n="modeSelect">선택/이동</button>
+        <button type="button" id="drawMode" data-i18n="modeDraw">박스 추가</button>
+      </div>
+    </div>
+
+    <div class="box" id="selectedBoxPanel" hidden>
+      <h2 data-i18n="selectedBox">선택한 박스</h2>
+      <div class="field"><label for="labelInput" data-i18n="labelText">라벨 텍스트</label><input id="labelInput" type="text" maxlength="40" placeholder="kitty"></div>
+      <div class="row mt"><label for="colorInput" data-i18n="boxColor">박스 컬러</label><div class="color-row"><input type="color" id="colorInput" value="#59B64C"><div id="colorChip" class="color-chip"></div></div></div>
+      <div class="row"><label for="lineWidth" data-i18n="lineWidth">선 두께</label><input type="range" id="lineWidth" min="1" max="10" value="4"><span class="val" id="lineWidthVal">4px</span></div>
+      <div class="row"><label for="fontSize" data-i18n="fontSize">글자 크기</label><input type="range" id="fontSize" min="14" max="72" value="40"><span class="val" id="fontSizeVal">40px</span></div>
+      <div class="row"><span class="row-label" data-i18n="textAlign">글자 정렬</span>
+        <div class="toggle-group" id="labelAlign">
+          <button type="button" class="active" data-align="left" data-i18n="alignLeft">왼쪽</button>
+          <button type="button" data-align="center" data-i18n="alignCenter">가운데</button>
+          <button type="button" data-align="right" data-i18n="alignRight">오른쪽</button>
+        </div>
+      </div>
+      <div class="row"><span class="row-label" data-i18n="labelPos">라벨 위치</span>
+        <div class="toggle-group" id="labelPos">
+          <button type="button" class="active" data-pos="top" data-i18n="posTop">위</button>
+          <button type="button" data-pos="inside" data-i18n="posInside">안쪽</button>
+        </div>
+      </div>
+      <button type="button" id="deleteBtn" class="danger full mt" data-i18n="deleteBox">선택 박스 삭제</button>
+    </div>
+
+    <div class="box">
+      <h2 data-i18n="detections">인식 박스</h2>
+      <div id="cards" class="cards"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- i18n ---------- */
+const I18N = {
+  ko: {
+    title:'AI FAIL 메이커', brandSuffix:'메이커', creator:'제작:', langLabel:'언어 선택', save:'이미지 저장',
+    addPhoto:'사진 추가', dropHint:'클릭 · 드래그 · 붙여넣기(Ctrl+V)', canvasLabel:'AI FAIL 밈 미리보기',
+    aspectTitle:'이미지 비율', aspectNative:'기본', imageTitle:'이미지', pickPhoto:'사진 선택', zoom:'확대', resetPos:'위치 초기화',
+    boxTools:'박스 작업', modeSelect:'선택/이동', modeDraw:'박스 추가', selectedBox:'선택한 박스',
+    labelText:'라벨 텍스트', boxColor:'박스 컬러', lineWidth:'선 두께', fontSize:'글자 크기',
+    textAlign:'글자 정렬', alignLeft:'왼쪽', alignCenter:'가운데', alignRight:'오른쪽',
+    labelPos:'라벨 위치', posTop:'위', posInside:'안쪽', deleteBox:'선택 박스 삭제',
+    detections:'인식 박스', noLabel:'라벨 없음', selectBtn:'선택', deleteBtn:'삭제',
+    emptyCards:'사진을 올린 뒤 "박스 추가"로 대상을 감싸 보세요.',
+    errLoad:'이미지를 불러오지 못했습니다. 다른 이미지 파일을 선택해 주세요.', errNotImage:'이미지 파일만 사용할 수 있어요.', errSave:'이미지를 저장하지 못했습니다.'
+  },
+  en: {
+    title:'AI FAIL Maker', brandSuffix:'Maker', creator:'By', langLabel:'Language', save:'Save image',
+    addPhoto:'Add photo', dropHint:'Click · Drag & drop · Paste (Ctrl+V)', canvasLabel:'AI FAIL meme preview',
+    aspectTitle:'Aspect ratio', aspectNative:'Original', imageTitle:'Image', pickPhoto:'Choose photo', zoom:'Zoom', resetPos:'Reset position',
+    boxTools:'Boxes', modeSelect:'Select / Move', modeDraw:'Add box', selectedBox:'Selected box',
+    labelText:'Label text', boxColor:'Box color', lineWidth:'Line width', fontSize:'Font size',
+    textAlign:'Text align', alignLeft:'Left', alignCenter:'Center', alignRight:'Right',
+    labelPos:'Label position', posTop:'Above', posInside:'Inside', deleteBox:'Delete box',
+    detections:'Detections', noLabel:'No label', selectBtn:'Select', deleteBtn:'Delete',
+    emptyCards:'Add a photo, then use "Add box" to wrap your subject.',
+    errLoad:'Could not load the image. Please choose another file.', errNotImage:'Only image files are supported.', errSave:'Could not save the image.'
+  },
+  ja: {
+    title:'AI FAIL メーカー', brandSuffix:'メーカー', creator:'制作:', langLabel:'言語選択', save:'画像を保存',
+    addPhoto:'写真を追加', dropHint:'クリック · ドラッグ · 貼り付け(Ctrl+V)', canvasLabel:'AI FAIL ミームのプレビュー',
+    aspectTitle:'画像の比率', aspectNative:'元の比率', imageTitle:'画像', pickPhoto:'写真を選択', zoom:'拡大', resetPos:'位置をリセット',
+    boxTools:'ボックス操作', modeSelect:'選択・移動', modeDraw:'ボックス追加', selectedBox:'選択中のボックス',
+    labelText:'ラベル', boxColor:'ボックス色', lineWidth:'線の太さ', fontSize:'文字サイズ',
+    textAlign:'文字揃え', alignLeft:'左', alignCenter:'中央', alignRight:'右',
+    labelPos:'ラベル位置', posTop:'上', posInside:'内側', deleteBox:'ボックスを削除',
+    detections:'検出ボックス', noLabel:'ラベルなし', selectBtn:'選択', deleteBtn:'削除',
+    emptyCards:'写真を追加して「ボックス追加」で対象を囲んでみましょう。',
+    errLoad:'画像を読み込めませんでした。別のファイルを選んでください。', errNotImage:'画像ファイルのみ使用できます。', errSave:'画像を保存できませんでした。'
+  },
+  zh: {
+    title:'AI FAIL 制作器', brandSuffix:'制作器', creator:'制作:', langLabel:'选择语言', save:'保存图片',
+    addPhoto:'添加图片', dropHint:'点击 · 拖放 · 粘贴(Ctrl+V)', canvasLabel:'AI FAIL 梗图预览',
+    aspectTitle:'图片比例', aspectNative:'原始', imageTitle:'图片', pickPhoto:'选择图片', zoom:'缩放', resetPos:'重置位置',
+    boxTools:'方框操作', modeSelect:'选择/移动', modeDraw:'添加方框', selectedBox:'已选方框',
+    labelText:'标签文字', boxColor:'方框颜色', lineWidth:'线条粗细', fontSize:'字号',
+    textAlign:'文字对齐', alignLeft:'左', alignCenter:'居中', alignRight:'右',
+    labelPos:'标签位置', posTop:'上方', posInside:'内部', deleteBox:'删除所选方框',
+    detections:'识别方框', noLabel:'无标签', selectBtn:'选择', deleteBtn:'删除',
+    emptyCards:'添加图片后，点击“添加方框”框住目标。',
+    errLoad:'无法加载图片，请选择其他文件。', errNotImage:'仅支持图片文件。', errSave:'无法保存图片。'
+  }
+};
+const LANG_KEY = 'aiFailMaker.lang';
+let lang = 'ko';
+const t = key => (I18N[lang] && I18N[lang][key]) || I18N.ko[key] || key;
+
+function detectLang() {
+  try { const saved = localStorage.getItem(LANG_KEY); if (I18N[saved]) return saved; } catch (_) {}
+  const nav = (navigator.language || 'ko').slice(0, 2); // zh-CN / zh-TW etc. -> zh
+  return I18N[nav] ? nav : 'en';
+}
+function setLang(next) {
+  if (!I18N[next]) return;
+  lang = next;
+  try { localStorage.setItem(LANG_KEY, next); } catch (_) {}
+  document.documentElement.lang = next;
+  document.title = t('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+  document.querySelectorAll('#langTabs button').forEach(b => {
+    const on = b.dataset.lang === next;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  renderCards();
+}
+
+/* ---------- elements & state ---------- */
+const $ = id => document.getElementById(id);
+const canvas = $('canvas'), ctx = canvas.getContext('2d');
+const fileInput = $('fileInput'), pickBtn = $('pickBtn'), downloadBtn = $('downloadBtn'), stage = $('stage');
+const selectMode = $('selectMode'), drawMode = $('drawMode'), cards = $('cards');
+const selectedBoxPanel = $('selectedBoxPanel');
+const labelInput = $('labelInput'), colorInput = $('colorInput'), colorChip = $('colorChip');
+const lineWidth = $('lineWidth'), fontSize = $('fontSize'), lineWidthVal = $('lineWidthVal'), fontSizeVal = $('fontSizeVal');
+const deleteBtn = $('deleteBtn'), resetPosBtn = $('resetPosBtn'), zoom = $('zoom');
+const labelPos = $('labelPos'), labelAlign = $('labelAlign'), aspectGroup = $('aspectGroup');
+
+const PALETTE = ['#59B64C', '#c5534c', '#4f83b8', '#c6a646', '#8c6aae', '#4f9b91', '#b97842'];
+const MAX_SIDE = 1200, MIN_BOX = 24, MIN_DRAW = 12;
+const RESIZE_CURSOR = { nw:'nwse-resize', se:'nwse-resize', ne:'nesw-resize', sw:'nesw-resize', n:'ns-resize', s:'ns-resize', e:'ew-resize', w:'ew-resize' };
+
+let img = null, boxes = [], selected = -1, mode = 'select';
+let drawing = null, drag = null, imageDrag = null;
+let currentAspect = 'native';
+let baseImageRect = { x:0, y:0, w:0, h:0 }, imageRect = { x:0, y:0, w:0, h:0 };
+
+/* ---------- canvas size / image placement ---------- */
+function canvasSizeForAspect(aspect) {
+  if (aspect === 'native') {
+    if (!img) return { w:1000, h:1000 };
+    const s = MAX_SIDE / Math.max(img.width, img.height);
+    return { w:Math.max(1, Math.round(img.width * s)), h:Math.max(1, Math.round(img.height * s)) };
+  }
+  if (aspect === '3:4') return { w:900, h:1200 };
+  if (aspect === '4:3') return { w:1200, h:900 };
+  return { w:1000, h:1000 };
+}
+function setCanvasAspect(aspect, { scaleBoxes = true } = {}) {
+  const oldW = canvas.width, oldH = canvas.height;
+  const next = canvasSizeForAspect(aspect);
+  currentAspect = aspect;
+  canvas.width = next.w; canvas.height = next.h;
+  if (scaleBoxes && oldW && oldH) {
+    const sx = next.w / oldW, sy = next.h / oldH, sf = Math.min(sx, sy);
+    boxes.forEach(b => { b.x *= sx; b.y *= sy; b.w *= sx; b.h *= sy; b.fontSize = Math.round(b.fontSize * sf); b.lineWidth = Math.max(1, Math.round(b.lineWidth * sf)); });
+  }
+  aspectGroup.querySelectorAll('button').forEach(btn => btn.classList.toggle('active', btn.dataset.aspect === aspect));
+  if (img) resetImagePosition(); else render();
+  updateSelection();
+}
+function resetImagePosition() {
+  if (!img) return;
+  const s = Math.max(canvas.width / img.width, canvas.height / img.height);
+  const w = img.width * s, h = img.height * s;
+  baseImageRect = { x:(canvas.width - w) / 2, y:(canvas.height - h) / 2, w, h };
+  imageRect = { ...baseImageRect };
+  zoom.value = 1;
+  render();
+}
+// keep the photo covering the whole canvas so no empty strip shows up
+function clampImageRect() {
+  imageRect.x = Math.min(0, Math.max(canvas.width - imageRect.w, imageRect.x));
+  imageRect.y = Math.min(0, Math.max(canvas.height - imageRect.h, imageRect.y));
+}
+function applyZoom() {
+  if (!img) return;
+  const z = +zoom.value;
+  const fx = (canvas.width / 2 - imageRect.x) / imageRect.w;
+  const fy = (canvas.height / 2 - imageRect.y) / imageRect.h;
+  const w = baseImageRect.w * z, h = baseImageRect.h * z;
+  imageRect = { x:canvas.width / 2 - fx * w, y:canvas.height / 2 - fy * h, w, h };
+  clampImageRect();
+  render();
+}
+
+/* ---------- drawing ---------- */
+function render(showUI = true) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (img) ctx.drawImage(img, imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+  boxes.forEach((b, i) => drawBox(b, showUI && i === selected));
+  if (showUI && drawing) {
+    drawBox({ ...drawing, label:'', color:PALETTE[boxes.length % PALETTE.length], lineWidth:3, fontSize:40, labelPos:'top', labelAlign:'left' }, false);
+  }
+}
+function drawBox(b, isSel) {
+  ctx.save();
+  ctx.strokeStyle = b.color; ctx.lineWidth = b.lineWidth;
+  ctx.strokeRect(b.x, b.y, b.w, b.h);
+  if (b.label) {
+    ctx.fillStyle = b.color;
+    ctx.font = `${b.fontSize}px Arial, Helvetica, sans-serif`;
+    const align = b.labelAlign || 'left';
+    ctx.textAlign = align;
+    // a label above a box at the very top edge would be cut off, so tuck it inside
+    const place = (b.labelPos === 'top' && b.y - 6 - b.fontSize < 0) ? 'inside' : b.labelPos;
+    if (place === 'inside') {
+      const pad = Math.max(10, b.lineWidth * 2 + 4);
+      ctx.textBaseline = 'top';
+      const tx = align === 'left' ? b.x + pad : align === 'right' ? b.x + b.w - pad : b.x + b.w / 2;
+      ctx.fillText(b.label, tx, b.y + pad);
+    } else {
+      ctx.textBaseline = 'bottom';
+      const tx = align === 'left' ? b.x : align === 'right' ? b.x + b.w : b.x + b.w / 2;
+      ctx.fillText(b.label, tx, b.y - 6);
+    }
+  }
+  if (isSel) {
+    ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+    ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+    ctx.setLineDash([]);
+    const hs = 12;
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#111';
+    getResizeHandles(b).forEach(h => { ctx.fillRect(h.x - hs / 2, h.y - hs / 2, hs, hs); ctx.strokeRect(h.x - hs / 2, h.y - hs / 2, hs, hs); });
+  }
+  ctx.restore();
+}
+function getResizeHandles(b) {
+  const mx = b.x + b.w / 2, my = b.y + b.h / 2, r = b.x + b.w, bt = b.y + b.h;
+  return [
+    { name:'nw', x:b.x, y:b.y }, { name:'n', x:mx, y:b.y }, { name:'ne', x:r, y:b.y },
+    { name:'e', x:r, y:my }, { name:'se', x:r, y:bt }, { name:'s', x:mx, y:bt },
+    { name:'sw', x:b.x, y:bt }, { name:'w', x:b.x, y:my }
+  ];
+}
+function hitResizeHandle(p, b) {
+  if (!b) return null;
+  const r = 16 * (canvas.width / canvas.getBoundingClientRect().width);
+  for (const h of getResizeHandles(b)) if (Math.abs(p.x - h.x) <= r && Math.abs(p.y - h.y) <= r) return h.name;
+  return null;
+}
+function pos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x:(e.clientX - r.left) * (canvas.width / r.width), y:(e.clientY - r.top) * (canvas.height / r.height) };
+}
+function hitTest(p) {
+  for (let i = boxes.length - 1; i >= 0; i--) {
+    const b = boxes[i];
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return i;
+  }
+  return -1;
+}
+
+/* ---------- mode / selection / cards ---------- */
+function setMode(m) {
+  mode = m;
+  selectMode.classList.toggle('active', m === 'select');
+  drawMode.classList.toggle('active', m === 'draw');
+  selectMode.setAttribute('aria-pressed', m === 'select');
+  drawMode.setAttribute('aria-pressed', m === 'draw');
+  canvas.style.cursor = m === 'draw' ? 'crosshair' : 'default';
+}
+function updateSelection() {
+  const b = boxes[selected];
+  selectedBoxPanel.hidden = !b;
+  if (b) {
+    labelInput.value = b.label;
+    colorInput.value = b.color; colorChip.style.background = b.color;
+    lineWidth.value = b.lineWidth; lineWidthVal.textContent = b.lineWidth + 'px';
+    fontSize.value = b.fontSize; fontSizeVal.textContent = b.fontSize + 'px';
+    labelPos.querySelectorAll('button').forEach(btn => btn.classList.toggle('active', btn.dataset.pos === b.labelPos));
+    labelAlign.querySelectorAll('button').forEach(btn => btn.classList.toggle('active', btn.dataset.align === (b.labelAlign || 'left')));
+  }
+  renderCards();
+  render();
+}
+function removeBox(i) {
+  if (i < 0 || i >= boxes.length) return;
+  boxes.splice(i, 1);
+  selected = -1;
+  updateSelection();
+}
+function renderCards() {
+  cards.innerHTML = '';
+  if (!boxes.length) {
+    const p = document.createElement('p');
+    p.className = 'cards-empty';
+    p.textContent = t('emptyCards');
+    cards.appendChild(p);
+    return;
+  }
+  boxes.forEach((b, i) => {
+    const c = document.createElement('div');
+    c.className = 'det-card' + (i === selected ? ' sel' : '');
+    c.innerHTML =
+      `<div class="det-head"><div class="det-title"><span class="color-chip" style="background:${escapeHtml(b.color)}"></span><span>${escapeHtml(b.label || t('noLabel'))}</span></div><span class="det-num">#${i + 1}</span></div>` +
+      `<div class="det-meta">${Math.round(b.w)} × ${Math.round(b.h)} px</div>` +
+      `<div class="det-actions"><button type="button" data-a="sel">${t('selectBtn')}</button><button type="button" data-a="del" class="danger">${t('deleteBtn')}</button></div>`;
+    c.addEventListener('click', e => {
+      if (e.target.closest('[data-a="del"]')) { removeBox(i); return; }
+      selected = i; updateSelection();
+    });
+    cards.appendChild(c);
+  });
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>'"]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[m]));
+}
+
+/* ---------- loading images ---------- */
+function loadFile(f) {
+  if (!f) return;
+  if (!f.type.startsWith('image/')) { alert(t('errNotImage')); return; }
+  const url = URL.createObjectURL(f);
+  const im = new Image();
+  im.onload = () => {
+    URL.revokeObjectURL(url);
+    img = im; boxes = []; selected = -1;
+    downloadBtn.disabled = false; zoom.disabled = false; resetPosBtn.disabled = false;
+    stage.classList.remove('image-empty');
+    stage.removeAttribute('role'); stage.removeAttribute('tabindex');
+    setCanvasAspect(currentAspect, { scaleBoxes:false });
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); alert(t('errLoad')); };
+  im.src = url;
+}
+const openPicker = () => fileInput.click();
+pickBtn.addEventListener('click', openPicker);
+fileInput.addEventListener('change', e => { loadFile(e.target.files && e.target.files[0]); fileInput.value = ''; });
+stage.addEventListener('click', e => { if (!img && !e.target.closest('button')) openPicker(); });
+stage.addEventListener('keydown', e => { if (!img && e.target === stage && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPicker(); } });
+
+// drag & drop, clipboard paste
+['dragenter', 'dragover'].forEach(ev => stage.addEventListener(ev, e => { e.preventDefault(); stage.classList.add('drag-over'); }));
+['dragleave', 'drop'].forEach(ev => stage.addEventListener(ev, e => { e.preventDefault(); stage.classList.remove('drag-over'); }));
+stage.addEventListener('drop', e => loadFile(e.dataTransfer && e.dataTransfer.files[0]));
+window.addEventListener('paste', e => {
+  const file = [...(e.clipboardData ? e.clipboardData.files : [])].find(f => f.type.startsWith('image/'));
+  if (file) { e.preventDefault(); loadFile(file); }
+});
+
+/* ---------- canvas interaction ---------- */
+canvas.addEventListener('pointerdown', e => {
+  if (!img) return;
+  canvas.setPointerCapture(e.pointerId);
+  const p = pos(e);
+  if (mode === 'draw') { drawing = { x:p.x, y:p.y, w:0, h:0 }; render(); return; }
+  if (selected >= 0) {
+    const handle = hitResizeHandle(p, boxes[selected]);
+    if (handle) {
+      const b = boxes[selected];
+      drag = { type:'resize', handle, ox:p.x, oy:p.y, x:b.x, y:b.y, w:b.w, h:b.h };
+      return;
+    }
+  }
+  const h = hitTest(p);
+  selected = h;
+  updateSelection();
+  if (h >= 0) { const b = boxes[h]; drag = { type:'move', ox:p.x, oy:p.y, bx:b.x, by:b.y }; }
+  else imageDrag = { ox:p.x, oy:p.y, bx:imageRect.x, by:imageRect.y };
+});
+canvas.addEventListener('pointermove', e => {
+  if (!img) return;
+  const p = pos(e);
+  if (drawing) { drawing.w = p.x - drawing.x; drawing.h = p.y - drawing.y; render(); return; }
+  if (drag && selected >= 0) {
+    const b = boxes[selected];
+    if (drag.type === 'move') {
+      b.x = drag.bx + (p.x - drag.ox); b.y = drag.by + (p.y - drag.oy);
+    } else {
+      const dx = p.x - drag.ox, dy = p.y - drag.oy;
+      let { x, y, w, h } = drag;
+      if (drag.handle.includes('e')) w = Math.max(MIN_BOX, drag.w + dx);
+      if (drag.handle.includes('s')) h = Math.max(MIN_BOX, drag.h + dy);
+      if (drag.handle.includes('w')) { const nw = Math.max(MIN_BOX, drag.w - dx); x = drag.x + (drag.w - nw); w = nw; }
+      if (drag.handle.includes('n')) { const nh = Math.max(MIN_BOX, drag.h - dy); y = drag.y + (drag.h - nh); h = nh; }
+      Object.assign(b, { x, y, w, h });
+    }
+    render(); renderCards();
+    return;
+  }
+  if (imageDrag) {
+    imageRect.x = imageDrag.bx + (p.x - imageDrag.ox);
+    imageRect.y = imageDrag.by + (p.y - imageDrag.oy);
+    clampImageRect();
+    render();
+    return;
+  }
+  // hover feedback
+  if (mode === 'select') {
+    const handle = selected >= 0 ? hitResizeHandle(p, boxes[selected]) : null;
+    canvas.style.cursor = handle ? RESIZE_CURSOR[handle] : hitTest(p) >= 0 ? 'move' : 'grab';
+  }
+});
+function endPointer() {
+  if (drawing) {
+    let { x, y, w, h } = drawing;
+    if (w < 0) { x += w; w = -w; }
+    if (h < 0) { y += h; h = -h; }
+    if (w > MIN_DRAW && h > MIN_DRAW) {
+      boxes.push({ x, y, w, h, label:'object', color:PALETTE[boxes.length % PALETTE.length], lineWidth:4, fontSize:40, labelPos:'top', labelAlign:'left' });
+      selected = boxes.length - 1;
+      setMode('select');
+    }
+    drawing = null;
+    updateSelection();
+  }
+  drag = null; imageDrag = null;
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+
+/* ---------- side panel controls ---------- */
+const withSelected = fn => () => { if (selected >= 0) fn(boxes[selected]); };
+labelInput.addEventListener('input', withSelected(b => { b.label = labelInput.value; render(); renderCards(); }));
+colorInput.addEventListener('input', withSelected(b => { b.color = colorInput.value; colorChip.style.background = b.color; render(); renderCards(); }));
+lineWidth.addEventListener('input', withSelected(b => { b.lineWidth = +lineWidth.value; lineWidthVal.textContent = b.lineWidth + 'px'; render(); }));
+fontSize.addEventListener('input', withSelected(b => { b.fontSize = +fontSize.value; fontSizeVal.textContent = b.fontSize + 'px'; render(); }));
+labelPos.addEventListener('click', e => { const btn = e.target.closest('button'); if (!btn || selected < 0) return; boxes[selected].labelPos = btn.dataset.pos; updateSelection(); });
+labelAlign.addEventListener('click', e => { const btn = e.target.closest('button'); if (!btn || selected < 0) return; boxes[selected].labelAlign = btn.dataset.align; updateSelection(); });
+aspectGroup.addEventListener('click', e => { const btn = e.target.closest('button'); if (btn) setCanvasAspect(btn.dataset.aspect); });
+selectMode.addEventListener('click', () => setMode('select'));
+drawMode.addEventListener('click', () => setMode('draw'));
+deleteBtn.addEventListener('click', () => removeBox(selected));
+zoom.addEventListener('input', applyZoom);
+resetPosBtn.addEventListener('click', resetImagePosition);
+$('langTabs').addEventListener('click', e => { const btn = e.target.closest('button'); if (btn) setLang(btn.dataset.lang); });
+
+downloadBtn.addEventListener('click', () => {
+  if (!img) return;
+  render(false); // export without selection handles
+  canvas.toBlob(blob => {
+    render();
+    if (!blob) { alert(t('errSave')); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = 'ai-fail-meme.png'; a.href = url; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, 'image/png');
+});
+
+/* ---------- keyboard ---------- */
+window.addEventListener('keydown', e => {
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === 'Escape') {
+    if (drawing) { drawing = null; render(); }
+    else if (mode === 'draw') setMode('select');
+    else if (selected >= 0) { selected = -1; updateSelection(); }
+    return;
+  }
+  if (selected < 0) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeBox(selected); return; }
+  const step = e.shiftKey ? 10 : 1;
+  const move = { ArrowLeft:[-step, 0], ArrowRight:[step, 0], ArrowUp:[0, -step], ArrowDown:[0, step] }[e.key];
+  if (move) { e.preventDefault(); boxes[selected].x += move[0]; boxes[selected].y += move[1]; render(); }
+});
+
+/* ---------- init ---------- */
+setMode('select');
+setLang(detectLang());
+setCanvasAspect('native', { scaleBoxes:false });
+})();
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
