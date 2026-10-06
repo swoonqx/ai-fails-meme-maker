@@ -300,7 +300,7 @@ const lineWidth = $('lineWidth'), fontSize = $('fontSize'), lineWidthVal = $('li
 const deleteBtn = $('deleteBtn'), resetPosBtn = $('resetPosBtn'), zoom = $('zoom');
 const labelPos = $('labelPos'), labelAlign = $('labelAlign'), aspectGroup = $('aspectGroup');
 
-const PALETTE = ['#59B64C', '#c5534c', '#4f83b8', '#c6a646', '#8c6aae', '#4f9b91', '#b97842'];
+const DEFAULT_COLOR = '#59B64C'; // every new box starts green (the original AI-fail look)
 const MAX_SIDE = 1200, MIN_BOX = 24, MIN_DRAW = 12;
 const RESIZE_CURSOR = { nw:'nwse-resize', se:'nwse-resize', ne:'nesw-resize', sw:'nesw-resize', n:'ns-resize', s:'ns-resize', e:'ew-resize', w:'ew-resize' };
 
@@ -364,7 +364,7 @@ function render(showUI = true) {
   if (img) ctx.drawImage(img, imageRect.x, imageRect.y, imageRect.w, imageRect.h);
   boxes.forEach((b, i) => drawBox(b, showUI && i === selected));
   if (showUI && drawing) {
-    drawBox({ ...drawing, label:'', color:PALETTE[boxes.length % PALETTE.length], lineWidth:3, fontSize:40, labelPos:'top', labelAlign:'left' }, false);
+    drawBox({ ...drawing, label:'', color:DEFAULT_COLOR, lineWidth:3, fontSize:40, labelPos:'top', labelAlign:'left' }, false);
   }
 }
 function drawBox(b, isSel) {
@@ -572,7 +572,7 @@ function endPointer() {
     if (w < 0) { x += w; w = -w; }
     if (h < 0) { y += h; h = -h; }
     if (w > MIN_DRAW && h > MIN_DRAW) {
-      boxes.push({ x, y, w, h, label:'object', color:PALETTE[boxes.length % PALETTE.length], lineWidth:4, fontSize:40, labelPos:'top', labelAlign:'left' });
+      boxes.push({ x, y, w, h, label:'object', color:DEFAULT_COLOR, lineWidth:4, fontSize:40, labelPos:'top', labelAlign:'left' });
       selected = boxes.length - 1;
       setMode('select');
     }
