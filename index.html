@@ -91,6 +91,12 @@ input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
 .det-meta{font-size:11px;color:var(--muted);margin-top:6px}
 .det-actions{display:flex;gap:6px;margin-top:10px}
 .det-actions button{flex:1;padding:6px 10px;font-size:12px}
+.det-actions button.layer-move{flex:0 0 34px;padding:6px 0}
+.det-card[draggable=true]{cursor:grab}
+.det-card.dragging{opacity:.45}
+.det-card.drop-before{box-shadow:0 -3px 0 var(--accent)}
+.det-card.drop-after{box-shadow:0 3px 0 var(--accent)}
+.layer-hint{font-size:11px;color:var(--muted);margin:0 0 10px}
 
 /* toggles */
 .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -320,7 +326,7 @@ const I18N = {
     textAlign:'글자 정렬', alignLeft:'왼쪽', alignCenter:'가운데', alignRight:'오른쪽',
     labelPos:'라벨 위치', posTop:'위', posInside:'안쪽', deleteBox:'선택 박스 삭제',
     detections:'인식 박스', noLabel:'라벨 없음', selectBtn:'선택', deleteBtn:'삭제',
-    emptyCards:'사진을 올린 뒤 "박스 추가"로 대상을 감싸 보세요.',
+    layerUp:'앞으로 (위 레이어로)', layerDown:'뒤로 (아래 레이어로)', layerHint:'드래그하거나 ▲▼로 레이어 순서를 바꿀 수 있어요. 위쪽이 앞에 표시돼요.', emptyCards:'사진을 올린 뒤 "박스 추가"로 대상을 감싸 보세요.',
     errLoad:'이미지를 불러오지 못했습니다. 다른 이미지 파일을 선택해 주세요.', errNotImage:'이미지 파일만 사용할 수 있어요.', errSave:'이미지를 저장하지 못했습니다.',
     colorPickerTitle:'색상 선택', colorApply:'적용', colorEyedropper:'스포이드', colorSVAria:'채도와 밝기', colorHueAria:'색상', colorHexAria:'HEX 색상', colorRecentLabel:'최근 사용한 색상', colorHelp:'색상 영역을 움직여 색을 선택하고 적용 버튼을 누르세요.'
   },
@@ -333,7 +339,7 @@ const I18N = {
     textAlign:'Text align', alignLeft:'Left', alignCenter:'Center', alignRight:'Right',
     labelPos:'Label position', posTop:'Above', posInside:'Inside', deleteBox:'Delete box',
     detections:'Detections', noLabel:'No label', selectBtn:'Select', deleteBtn:'Delete',
-    emptyCards:'Add a photo, then use "Add box" to wrap your subject.',
+    layerUp:'Bring forward', layerDown:'Send backward', layerHint:'Drag cards or use ▲▼ to reorder layers. Top of the list is in front.', emptyCards:'Add a photo, then use "Add box" to wrap your subject.',
     errLoad:'Could not load the image. Please choose another file.', errNotImage:'Only image files are supported.', errSave:'Could not save the image.',
     colorPickerTitle:'Choose Color', colorApply:'Apply', colorEyedropper:'Eyedropper', colorSVAria:'Saturation and brightness', colorHueAria:'Hue', colorHexAria:'HEX color', colorRecentLabel:'Recent Colors', colorHelp:'Move in the color area to pick a color, then press Apply.'
   },
@@ -346,7 +352,7 @@ const I18N = {
     textAlign:'文字揃え', alignLeft:'左', alignCenter:'中央', alignRight:'右',
     labelPos:'ラベル位置', posTop:'上', posInside:'内側', deleteBox:'ボックスを削除',
     detections:'検出ボックス', noLabel:'ラベルなし', selectBtn:'選択', deleteBtn:'削除',
-    emptyCards:'写真を追加して「ボックス追加」で対象を囲んでみましょう。',
+    layerUp:'前面へ', layerDown:'背面へ', layerHint:'ドラッグまたは▲▼でレイヤー順を変更できます。上が前面です。', emptyCards:'写真を追加して「ボックス追加」で対象を囲んでみましょう。',
     errLoad:'画像を読み込めませんでした。別のファイルを選んでください。', errNotImage:'画像ファイルのみ使用できます。', errSave:'画像を保存できませんでした。',
     colorPickerTitle:'色を選択', colorApply:'適用', colorEyedropper:'スポイト', colorSVAria:'彩度と明るさ', colorHueAria:'色相', colorHexAria:'HEXカラー', colorRecentLabel:'最近使った色', colorHelp:'色の領域を動かして色を選び、適用を押してください。'
   },
@@ -359,7 +365,7 @@ const I18N = {
     textAlign:'文字对齐', alignLeft:'左', alignCenter:'居中', alignRight:'右',
     labelPos:'标签位置', posTop:'上方', posInside:'内部', deleteBox:'删除所选方框',
     detections:'识别方框', noLabel:'无标签', selectBtn:'选择', deleteBtn:'删除',
-    emptyCards:'添加图片后，点击“添加方框”框住目标。',
+    layerUp:'上移一层', layerDown:'下移一层', layerHint:'可拖动卡片或点击▲▼调整图层顺序，列表上方位于前面。', emptyCards:'添加图片后，点击“添加方框”框住目标。',
     errLoad:'无法加载图片，请选择其他文件。', errNotImage:'仅支持图片文件。', errSave:'无法保存图片。',
     colorPickerTitle:'选择颜色', colorApply:'应用', colorEyedropper:'吸管', colorSVAria:'饱和度和亮度', colorHueAria:'色相', colorHexAria:'HEX 颜色', colorRecentLabel:'最近使用的颜色', colorHelp:'在颜色区域移动选择颜色，然后点击应用。'
   }
@@ -564,19 +570,77 @@ function renderCards() {
     cards.appendChild(p);
     return;
   }
-  boxes.forEach((b, i) => {
+  if (boxes.length > 1) {
+    const hint = document.createElement('p');
+    hint.className = 'layer-hint';
+    hint.textContent = t('layerHint');
+    cards.appendChild(hint);
+  }
+  // list top layer first; boxes[] is drawn in order, so the last item is in front
+  for (let i = boxes.length - 1; i >= 0; i--) {
+    const b = boxes[i];
     const c = document.createElement('div');
     c.className = 'det-card' + (i === selected ? ' sel' : '');
+    c.draggable = boxes.length > 1;
+    c.dataset.index = i;
     c.innerHTML =
       `<div class="det-head"><div class="det-title"><span class="color-chip" style="background:${escapeHtml(b.color)}"></span><span>${escapeHtml(b.label || t('noLabel'))}</span></div><span class="det-num">#${i + 1}</span></div>` +
       `<div class="det-meta">${Math.round(b.w)} × ${Math.round(b.h)} px</div>` +
-      `<div class="det-actions"><button type="button" data-a="sel">${t('selectBtn')}</button><button type="button" data-a="del" class="danger">${t('deleteBtn')}</button></div>`;
+      `<div class="det-actions">` +
+        `<button type="button" class="layer-move" data-a="up" title="${t('layerUp')}" aria-label="${t('layerUp')}"${i === boxes.length - 1 ? ' disabled' : ''}>▲</button>` +
+        `<button type="button" class="layer-move" data-a="down" title="${t('layerDown')}" aria-label="${t('layerDown')}"${i === 0 ? ' disabled' : ''}>▼</button>` +
+        `<button type="button" data-a="sel">${t('selectBtn')}</button><button type="button" data-a="del" class="danger">${t('deleteBtn')}</button></div>`;
     c.addEventListener('click', e => {
-      if (e.target.closest('[data-a="del"]')) { removeBox(i); return; }
+      const a = e.target.closest('[data-a]');
+      if (a && a.dataset.a === 'del') { removeBox(i); return; }
+      if (a && a.dataset.a === 'up') { moveBox(i, i + 1); return; }
+      if (a && a.dataset.a === 'down') { moveBox(i, i - 1); return; }
       selected = i; updateSelection();
     });
+    c.addEventListener('dragstart', e => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(i));
+      layerDragFrom = i;
+      requestAnimationFrame(() => c.classList.add('dragging'));
+    });
+    c.addEventListener('dragend', () => { layerDragFrom = -1; clearDropMarks(); c.classList.remove('dragging'); });
+    c.addEventListener('dragover', e => {
+      if (layerDragFrom < 0 || layerDragFrom === i) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const r = c.getBoundingClientRect();
+      const before = e.clientY < r.top + r.height / 2; // upper half = in front of this card
+      clearDropMarks();
+      c.classList.add(before ? 'drop-before' : 'drop-after');
+    });
+    c.addEventListener('drop', e => {
+      if (layerDragFrom < 0) return;
+      e.preventDefault();
+      const r = c.getBoundingClientRect();
+      const inFront = e.clientY < r.top + r.height / 2;
+      const from = layerDragFrom;
+      layerDragFrom = -1;
+      clearDropMarks();
+      let to = inFront ? i + 1 : i; // slot index among the current array
+      if (from < to) to -= 1;       // removing `from` first shifts later slots down
+      moveBox(from, to);
+    });
     cards.appendChild(c);
-  });
+  }
+}
+let layerDragFrom = -1;
+function clearDropMarks() {
+  cards.querySelectorAll('.drop-before,.drop-after').forEach(el => el.classList.remove('drop-before', 'drop-after'));
+}
+// change a box's z-order; the same box stays selected
+function moveBox(from, to) {
+  to = Math.max(0, Math.min(boxes.length - 1, to));
+  if (from === to || from < 0 || from >= boxes.length) return;
+  const sel = selected >= 0 ? boxes[selected] : null;
+  const [b] = boxes.splice(from, 1);
+  boxes.splice(to, 0, b);
+  selected = sel ? boxes.indexOf(sel) : -1;
+  updateSelection();
 }
 function escapeHtml(s) {
   return String(s).replace(/[&<>'"]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[m]));
@@ -727,6 +791,8 @@ window.addEventListener('keydown', e => {
   }
   if (selected < 0) return;
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeBox(selected); return; }
+  if (e.key === ']') { moveBox(selected, selected + 1); return; }
+  if (e.key === '[') { moveBox(selected, selected - 1); return; }
   const step = e.shiftKey ? 10 : 1;
   const move = { ArrowLeft:[-step, 0], ArrowRight:[step, 0], ArrowUp:[0, -step], ArrowDown:[0, step] }[e.key];
   if (move) { e.preventDefault(); boxes[selected].x += move[0]; boxes[selected].y += move[1]; render(); }
